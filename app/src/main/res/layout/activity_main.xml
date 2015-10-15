@@ -1,0 +1,26 @@
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+    >
+
+
+    <fragment
+        android:id="@+id/fg_sms_list"
+        android:name="com.markjoker.sms.fragments.SmsFragment"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        />
+
+    <fragment
+        android:id="@+id/fg_actionbar"
+        android:name="com.markjoker.sms.fragments.ActionBarFragment"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/actionbar_dimen"/>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="4dp"
+        android:layout_below="@id/fg_actionbar"
+        android:background="@drawable/shadow_top"
+        />
+</RelativeLayout>
