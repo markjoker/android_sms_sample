@@ -1,12 +1,14 @@
 package com.markjoker.sms.fragments;
 
 import android.content.ContentResolver;
+import android.content.ContentUris;
+import android.content.Intent;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
-import android.app.Fragment;
 import android.provider.Telephony;
+import android.support.v4.app.Fragment;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.view.LayoutInflater;
@@ -16,6 +18,7 @@ import android.widget.ImageView;
 import android.widget.TextView;
 
 import com.markjoker.sms.R;
+import com.markjoker.sms.activity.ConversationActivity;
 import com.markjoker.sms.utils.DateUtil;
 import com.markjoker.sms.views.SimpleDividerItemDecoration;
 
@@ -106,26 +109,49 @@ public class SmsFragment extends Fragment
         {
             mData.clear();
             ContentResolver contentResolver = getActivity().getContentResolver();
-            Cursor cursor = contentResolver.query(Uri.parse("content://sms/"),
-                new String[]{Telephony.Sms._ID, Telephony.Sms.ADDRESS, Telephony.Sms.DATE, Telephony.Sms.BODY,
-                    Telephony.Sms.TYPE},
+//            Uri uri = Uri.parse("content://sms/");
+            Uri uri = Uri.parse("content://mms-sms/conversations?simple=true");
+            Cursor cursor = contentResolver.query(uri,
+                new String[]{Telephony.ThreadsColumns._ID, Telephony.ThreadsColumns.RECIPIENT_IDS,
+                    Telephony.ThreadsColumns.MESSAGE_COUNT, Telephony.ThreadsColumns.DATE,
+                    Telephony.ThreadsColumns.SNIPPET, Telephony.ThreadsColumns.TYPE},
                 null,
                 null,
                 Telephony.Sms.DEFAULT_SORT_ORDER);
             if (cursor != null && cursor.getCount() > 0)
             {
                 Map<String, Object> map = null;
+                Cursor addrCursor = null;
                 while (cursor.moveToNext())
                 {
                     map = new HashMap<>();
-                    map.put(Telephony.Sms._ID, cursor.getString(0));
-                    map.put(Telephony.Sms.ADDRESS, cursor.getString(1));
-                    map.put(Telephony.Sms.DATE, cursor.getLong(2));
-                    map.put(Telephony.Sms.BODY, cursor.getString(3));
-                    map.put(Telephony.Sms.TYPE, cursor.getInt(4));
-                    map.put(Telephony.Threads.SNIPPET, cursor.getString(0));
+                    map.put(Telephony.ThreadsColumns._ID, cursor.getString(0));
+                    map.put(Telephony.ThreadsColumns.RECIPIENT_IDS, cursor.getLong(1));
+                    map.put(Telephony.ThreadsColumns.MESSAGE_COUNT, cursor.getInt(2));
+                    map.put(Telephony.ThreadsColumns.DATE, cursor.getLong(3));
+                    map.put(Telephony.ThreadsColumns.SNIPPET, cursor.getString(4));
+                    map.put(Telephony.ThreadsColumns.TYPE, cursor.getInt(5));
+                    addrCursor =
+                        contentResolver.query(ContentUris.withAppendedId(Uri.parse
+                                ("content://mms-sms/canonical-address"),
+                            (Long)map.get(Telephony.ThreadsColumns.RECIPIENT_IDS)), null, null, null, null);
+                    
+                    if (addrCursor.moveToNext())
+                    {
+                        map.put(Telephony.Sms.ADDRESS,
+                            addrCursor.getString(addrCursor.getColumnIndex(Telephony.CanonicalAddressesColumns
+                                .ADDRESS)));
+                    }
+                    if(null != addrCursor)
+                    {
+                        addrCursor.close();
+                    }
                     mData.add(map);
                 }
+            }
+            if (null != cursor)
+            {
+                cursor.close();
             }
             return true;
         }
@@ -156,8 +182,9 @@ public class SmsFragment extends Fragment
         {
             Map<String, Object> map = mData.get(position);
             holder.mNameView.setText((String)map.get(Telephony.Sms.ADDRESS));
-            holder.mContentView.setText((String)map.get(Telephony.Sms.BODY));
-            holder.mTimeView.setText(DateUtil.formatToMonthAndDay(new Date((Long)map.get(Telephony.Sms.DATE))));
+            holder.mContentView.setText((String)map.get(Telephony.ThreadsColumns.SNIPPET));
+            holder.mTimeView.setText(DateUtil.formatToMonthAndDay(new Date((Long)map.get(Telephony.ThreadsColumns
+                .DATE))));
         }
         
         @Override
@@ -184,6 +211,20 @@ public class SmsFragment extends Fragment
             mNameView = (TextView)itemView.findViewById(R.id.tv_name);
             mContentView = (TextView)itemView.findViewById(R.id.tv_content);
             mTimeView = (TextView)itemView.findViewById(R.id.tv_time);
+            itemView.setOnClickListener(new View.OnClickListener()
+            {
+                @Override
+                public void onClick(View v)
+                {
+                    int position = getLayoutPosition();
+                    String id = (String)mData.get(position).get(Telephony.ThreadsColumns._ID);
+                    String address = (String)mData.get(position).get(Telephony.Sms.ADDRESS);
+                    Intent intent = new Intent(getActivity(), ConversationActivity.class);
+                    intent.putExtra(Telephony.ThreadsColumns._ID, id);
+                    intent.putExtra(Telephony.Sms.ADDRESS, address);
+                    getActivity().startActivity(intent);
+                }
+            });
         }
     }
 }
