@@ -5,6 +5,8 @@ import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.View;
+import android.widget.TextView;
 
 import com.markjoker.sms.R;
 import com.markjoker.sms.fragments.ConversationsFragment;
@@ -19,6 +21,15 @@ public class ConversationActivity extends AppCompatActivity
         setContentView(R.layout.activity_conversation);
         String id = getIntent().getStringExtra(Telephony.ThreadsColumns._ID);
         String address = getIntent().getStringExtra(Telephony.Sms.ADDRESS);
+        ((TextView)findViewById(R.id.tv_number)).setText(address);
+        findViewById(R.id.btn_back).setOnClickListener(new View.OnClickListener()
+        {
+            @Override
+            public void onClick(View v)
+            {
+                ConversationActivity.this.finish();
+            }
+        });
         getSupportFragmentManager().beginTransaction()
             .add(R.id.fg_detail, ConversationsFragment.newInstance(id, address))
             .commit();

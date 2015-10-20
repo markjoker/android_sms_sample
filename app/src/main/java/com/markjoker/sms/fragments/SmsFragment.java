@@ -1,11 +1,15 @@
 package com.markjoker.sms.fragments;
 
+import android.Manifest;
+import android.annotation.TargetApi;
 import android.content.ContentResolver;
 import android.content.ContentUris;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.AsyncTask;
+import android.os.Build;
 import android.os.Bundle;
 import android.provider.Telephony;
 import android.support.v4.app.Fragment;
@@ -19,6 +23,7 @@ import android.widget.TextView;
 
 import com.markjoker.sms.R;
 import com.markjoker.sms.activity.ConversationActivity;
+import com.markjoker.sms.utils.AppUtils;
 import com.markjoker.sms.utils.DateUtil;
 import com.markjoker.sms.views.SimpleDividerItemDecoration;
 
@@ -35,11 +40,14 @@ import java.util.Map;
  */
 public class SmsFragment extends Fragment
 {
+    
     // TODO: Rename parameter arguments, choose names that match
     // the fragment initialization parameters, e.g. ARG_ITEM_NUMBER
     private static final String ARG_PARAM1 = "param1";
     
     private static final String ARG_PARAM2 = "param2";
+    
+    public static final int REQUEST_PERMISSION_CODE = 11;
     
     // TODO: Rename and change types of parameters
     private String mParam1;
@@ -97,8 +105,44 @@ public class SmsFragment extends Fragment
         mSmsListView.setAdapter(mAdapter);
         mSmsListView.setLayoutManager(new LinearLayoutManager(getActivity()));
         mSmsListView.addItemDecoration(new SimpleDividerItemDecoration(getActivity()));
-        new LoadDataTask().execute();
+        checkPermission();
         return rootView;
+    }
+    
+    @TargetApi(Build.VERSION_CODES.M)
+    private void checkPermission()
+    {
+        if (!AppUtils.hasM())
+        {
+            new LoadDataTask().execute();
+            return;
+        }
+        if (getActivity().checkSelfPermission(Manifest.permission.READ_SMS) == PackageManager.PERMISSION_DENIED)
+        {
+            requestPermissions(new String[]{Manifest.permission.READ_SMS}, REQUEST_PERMISSION_CODE);
+        }
+        else
+        {
+            new LoadDataTask().execute();
+        }
+    }
+    
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults)
+    {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if(requestCode == REQUEST_PERMISSION_CODE)
+        {
+            for(int i =0; i< permissions.length; i++)
+            {
+                if(grantResults[i] == PackageManager.PERMISSION_DENIED)
+                {
+                    getActivity().finish();
+                    return;
+                }
+            }
+            new LoadDataTask().execute();
+        }
     }
     
     private class LoadDataTask extends AsyncTask<Void, Integer, Boolean>
@@ -142,7 +186,7 @@ public class SmsFragment extends Fragment
                             addrCursor.getString(addrCursor.getColumnIndex(Telephony.CanonicalAddressesColumns
                                 .ADDRESS)));
                     }
-                    if(null != addrCursor)
+                    if (null != addrCursor)
                     {
                         addrCursor.close();
                     }

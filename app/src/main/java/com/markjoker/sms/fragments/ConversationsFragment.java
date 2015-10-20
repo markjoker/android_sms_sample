@@ -1,6 +1,11 @@
 package com.markjoker.sms.fragments;
 
+import android.app.Activity;
+import android.app.PendingIntent;
 import android.content.ContentResolver;
+import android.content.ContentValues;
+import android.content.Context;
+import android.content.Intent;
 import android.database.Cursor;
 import android.graphics.Color;
 import android.graphics.ColorMatrix;
@@ -16,16 +21,19 @@ import android.support.v4.app.Fragment;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
+import android.telephony.SmsManager;
+import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import com.markjoker.sms.R;
 import com.markjoker.sms.utils.DateUtil;
-import com.markjoker.sms.views.SimpleDividerItemDecoration;
+import com.markjoker.sms.utils.KeyBoardUtils;
 
 import java.util.ArrayList;
 import java.util.Date;
@@ -36,8 +44,13 @@ import java.util.Map;
 /**
  * A simple {@link Fragment} subclass.
  */
-public class ConversationsFragment extends Fragment
+public class ConversationsFragment extends BaseFragment implements View.OnClickListener
 {
+    
+    public static final int REQUEST_SEND = 1001;
+    
+    public static final int REQUEST_DELIVERED = 1002;
+    
     private String mConversationId;
     
     private String mNumber;
@@ -47,6 +60,8 @@ public class ConversationsFragment extends Fragment
     private ConversationAdapter mConversationAdapter;
     
     private List<Map<String, Object>> mData;
+    
+    private EditText mInputText;
     
     public static ConversationsFragment newInstance(String conversionId, String number)
     {
@@ -77,10 +92,69 @@ public class ConversationsFragment extends Fragment
         mRecyclerView = (RecyclerView)rootView.findViewById(R.id.rv_conversation);
         mConversationAdapter = new ConversationAdapter();
         mRecyclerView.setAdapter(mConversationAdapter);
-        mRecyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
+        LinearLayoutManager layoutManager = new LinearLayoutManager(getContext());
+        layoutManager.setReverseLayout(true);
+        mRecyclerView.setLayoutManager(layoutManager);
         //mRecyclerView.addItemDecoration(new SimpleDividerItemDecoration(getContext()));
+        mInputText = (EditText)rootView.findViewById(R.id.et_input);
+        rootView.findViewById(R.id.btn_send).setOnClickListener(this);
+        
         new LoadDataTask().execute();
         return rootView;
+    }
+    
+    private void doSendSms()
+    {
+        String msg = mInputText.getText().toString();
+        if (TextUtils.isEmpty(msg))
+        {
+            return;
+        }
+        Intent intent = new Intent(SENT);
+        intent.putExtra(Telephony.Sms.ADDRESS, mNumber);
+        intent.putExtra(Telephony.Sms.BODY, msg);
+        PendingIntent sendIntent =
+            PendingIntent.getBroadcast(getContext(), REQUEST_SEND, intent, PendingIntent.FLAG_UPDATE_CURRENT);
+        SmsManager smsManager = SmsManager.getDefault();
+        smsManager.sendTextMessage(mNumber, null, msg, sendIntent, null);
+        mInputText.setText("");
+        KeyBoardUtils.closeKeybord(mInputText, getContext());
+    }
+    
+    @Override
+    protected void onSend(int code, Intent intent)
+    {
+        super.onSend(code, intent);
+        if (Activity.RESULT_OK == code)
+        {
+            ContentResolver resolver = getActivity().getContentResolver();
+            ContentValues values = new ContentValues();
+            values.put(Telephony.Sms.ADDRESS, intent.getStringExtra(Telephony.Sms.ADDRESS));
+            values.put(Telephony.Sms.BODY, intent.getStringExtra(Telephony.Sms.BODY));
+            values.put(Telephony.Sms.TYPE, Telephony.Sms.MESSAGE_TYPE_SENT);
+            resolver.insert(Uri.parse("content://sms"), values);
+            Map<String, Object> map = new HashMap<>();
+            map.put(Telephony.Sms.ADDRESS, intent.getStringExtra(Telephony.Sms.ADDRESS));
+            map.put(Telephony.Sms.BODY, intent.getStringExtra(Telephony.Sms.BODY));
+            map.put(Telephony.Sms.DATE, new Date().getTime());
+            map.put(Telephony.Sms.TYPE, Telephony.Sms.MESSAGE_TYPE_SENT);
+            mData.add(0, map);
+            mConversationAdapter.notifyItemInserted(0);
+            mRecyclerView.scrollToPosition(0);
+        }
+    }
+    
+    @Override
+    public void onClick(View v)
+    {
+        switch (v.getId())
+        {
+            case R.id.btn_send:
+                doSendSms();
+                break;
+            default:
+                break;
+        }
     }
     
     private class LoadDataTask extends AsyncTask<Void, Void, Boolean>

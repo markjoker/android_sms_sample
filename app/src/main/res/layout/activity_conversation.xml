@@ -16,7 +16,24 @@
         android:layout_width="match_parent"
         android:layout_height="@dimen/actionbar_dimen"
         android:background="@color/material_pink_400"
-        ></RelativeLayout>
+        >
+        <ImageView
+            android:id="@+id/btn_back"
+            android:layout_width="@dimen/actionbar_dimen"
+            android:layout_height="@dimen/actionbar_dimen"
+            android:padding="12dp"
+            android:src="@drawable/ic_arrow_back_light"/>
+        <TextView
+            android:id="@+id/tv_number"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="#fff"
+            android:textSize="22sp"
+            android:layout_centerVertical="true"
+            android:text="10086"
+            android:layout_toRightOf="@id/btn_back"
+            android:layout_marginLeft="8dp"/>
+    </RelativeLayout>
 
     <View
         android:layout_width="match_parent"
